@@ -16,7 +16,7 @@ CRM система с поддержкой нескольких организа
 - Python 3.11+
 - PostgreSQL 15+
 - uv (для управления зависимостями)
-- Docker и Docker Compose (опционально)
+- Docker и Docker Compose
 
 ## Технологический стек
 
@@ -40,29 +40,7 @@ CRM система с поддержкой нескольких организа
 ### Качество кода
 - **Ruff** - быстрый линтер и форматтер
 
-## Быстрый старт с Docker
-
-1. Скопируйте `.env.example` в `.env` и настройте переменные:
-
-```bash
-cp .env.example .env
-```
-
-**Важно:** Измените `JWT_SECRET` на случайную строку минимум 32 символа для production!
-
-2. Запустите контейнеры:
-
-```bash
-docker-compose up -d
-```
-
-API будет доступен: http://localhost:8000
-
-Документация API: http://localhost:8000/api/v1/docs
-
-**Примечание:** Файл `.env` содержит чувствительные данные и не должен попадать в git (добавлен в `.gitignore`).
-
-## Локальная установка
+## Установка
 
 ### 1. Установите uv
 
@@ -90,39 +68,47 @@ cp .env.example .env
 
 Пример `.env`:
 ```
-DATABASE_URL=postgresql+asyncpg://crm_user:crm_password@localhost:5432/crm
-JWT_SECRET=your-secret-key-change-this-in-production
+# PostgreSQL Configuration (for docker-compose)
+POSTGRES_USER=crm_user
+POSTGRES_PASSWORD=crm_password
+POSTGRES_DB=crm
+
+# Database Configuration (for application)
+DATABASE_URL=postgresql+asyncpg://crm_user:crm_password@db:5432/crm
+
+# JWT
+JWT_SECRET=change-me-in-production-min-32-chars-required
 JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=15
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Security
+BCRYPT_ROUNDS=12
+
+# API Configuration
 API_V1_PREFIX=/api/v1
+
+# Application
+DEBUG=false
 ```
 
-### 4. Запустите PostgreSQL
+**⚠️ Важно для production:**
+- Измените `JWT_SECRET` на случайную строку минимум 32 символа
+- Измените `POSTGRES_PASSWORD` на надёжный пароль
+- Установите `DEBUG=false`
+
+### 4. Запустите контейнеры
 
 ```bash
-docker run -d \
-  --name crm-postgres \
-  -e POSTGRES_USER=crm_user \
-  -e POSTGRES_PASSWORD=crm_password \
-  -e POSTGRES_DB=crm \
-  -p 5432:5432 \
-  postgres:16-alpine
+docker-compose up -d --build --no-deps
 ```
 
-### 5. Примените миграции
+### 5. Проверьте работу
 
-```bash
-uv run alembic upgrade head
-```
+- **API:** http://localhost:8000
+- **Документация:** http://localhost:8000/api/v1/docs
+- **Health check:** http://localhost:8000/health
 
-### 6. Запустите приложение
-
-```bash
-uv run uvicorn src.main:app --reload
-```
-
-API: http://localhost:8000
-
-Документация: http://localhost:8000/api/v1/docs
 
 ## Примеры API запросов
 
@@ -196,11 +182,11 @@ curl -X GET http://localhost:8000/api/v1/analytics/deals/summary \
 
 ## Тестирование
 
-Проект содержит **49 тестов**, покрывающих все ключевые сценарии:
+Проект содержит **57 тестов**, покрывающих все ключевые сценарии:
 
-- **13 unit тестов** - базовая функциональность (config, database, domain)
-- **33 property-based теста** - проверка инвариантов с Hypothesis
-- **3 интеграционных теста** - полный flow через API
+- **15 unit тестов** - базовая функциональность (config, database, domain)
+- **32 property-based теста** - проверка инвариантов с Hypothesis
+- **10 интеграционных тестов** - полный flow через API
 
 ### Запуск всех тестов через Docker
 
@@ -216,36 +202,6 @@ docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit
 docker-compose -f docker-compose.test.yml down
 docker-compose -f docker-compose.test.yml build test_runner
 docker-compose -f docker-compose.test.yml up --abort-on-container-exit
-```
-
-### Запуск тестов локально
-
-```bash
-# Все тесты
-uv run pytest -v
-
-# Только unit тесты
-uv run pytest tests/test_*.py -v
-
-# Только property-based тесты
-uv run pytest tests/properties/ -v
-
-# Только интеграционные тесты (требуется PostgreSQL)
-uv run pytest tests/integration/ -v
-```
-
-### Запуск с покрытием
-
-```bash
-uv run pytest --cov=src --cov-report=html --cov-report=term
-```
-
-Отчёт будет в `htmlcov/index.html`
-
-### Запуск конкретного теста
-
-```bash
-uv run pytest tests/properties/test_services.py::test_deal_initial_state -v
 ```
 
 ### Категории тестов
@@ -352,8 +308,8 @@ uv run alembic downgrade -1
 - Проверка прав доступа на уровне сервисов
 
 ### Тестирование
-- **49 тестов** с полным покрытием функциональности
-- Property-based тесты с Hypothesis (33 теста)
-- Unit тесты для всех слоёв (13 тестов)
-- Интеграционные тесты через API (3 теста)
+- **57 тестов** с полным покрытием функциональности
+- Property-based тесты с Hypothesis (32 теста)
+- Unit тесты для всех слоёв (15 тестов)
+- Интеграционные тесты через API (10 тестов)
 - Запуск в Docker для изоляции окружения
